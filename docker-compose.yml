@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://localhost:3001
+    depends_on:
+      - bff
+
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3001:3001'
+    volumes:
+      - ./bff:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=local-dev-secret-key
+      - JWT_EXPIRES_IN=1h
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - SERVICE_A_URL=http://mock-service-a:4001
+      - SERVICE_B_URL=http://mock-service-b:4002
+      - LOG_LEVEL=debug
+    depends_on:
+      - mock-service-a
+      - mock-service-b
+
+  # ダウンストリームサービスのモック (WireMock)
+  mock-service-a:
+    image: wiremock/wiremock:latest
+    ports:
+      - '4001:8080'
+    volumes:
+      - ./mocks/service-a:/home/wiremock
+
+  mock-service-b:
+    image: wiremock/wiremock:latest
+    ports:
+      - '4002:8080'
+    volumes:
+      - ./mocks/service-b:/home/wiremock
