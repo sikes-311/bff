@@ -76,9 +76,16 @@
 │   │   └── modules/         # 機能モジュール
 │   │       └── {feature}/
 │   │           ├── {feature}.module.ts
-│   │           ├── {feature}.controller.ts
-│   │           ├── {feature}.service.ts
-│   │           └── dto/
+│   │           ├── {feature}.controller.ts   # Presentation層: HTTP入出力・DTO変換
+│   │           ├── usecase/                  # Usecase層: 単一ユースケース単位
+│   │           │   ├── get-{feature}.usecase.ts
+│   │           │   ├── create-{feature}.usecase.ts
+│   │           │   └── ...
+│   │           ├── gateway/                  # Gateway層: ダウンストリーム通信実装
+│   │           │   └── {feature}.gateway.ts
+│   │           ├── port/                     # Port: Gatewayのインターフェース定義
+│   │           │   └── {feature}.gateway.port.ts
+│   │           └── dto/                      # DTO: リクエスト・レスポンス型
 │   ├── test/                # e2e テスト
 │   ├── package.json
 │   └── tsconfig.json
@@ -99,6 +106,92 @@
 ### 担わないもの
 - ビジネスロジックの実装（バックエンドサービスに委譲）
 - データの永続化（バックエンドサービスに委譲）
+
+## BFF クリーンアーキテクチャ設計
+
+BFF は機能モジュール内を **3層** に分離する。ビジネスロジックは持たないが、集約・変換ロジックをテスト可能な形で整理するために採用する。
+
+```
+┌─────────────────────────────────────────┐
+│  Presentation層 (Controller)            │
+│  ・HTTPリクエスト/レスポンスのマッピング   │
+│  ・class-validator による入力バリデーション│
+│  ・認証ガードの適用                       │
+│  ・Usecase の呼び出し（1エンドポイント = 1Usecase）│
+└───────────────────┬─────────────────────┘
+                    │ 呼び出し
+                    ▼
+┌─────────────────────────────────────────┐
+│  Usecase層 (*.usecase.ts)               │
+│  ・1クラス = 1ユースケース (execute メソッド)│
+│  ・複数Gatewayの集約・レスポンス変換       │
+│  ・依存はPortインターフェースのみ          │
+└───────────────────┬─────────────────────┘
+                    │ Port経由で呼び出し
+                    ▼
+┌─────────────────────────────────────────┐
+│  Gateway層 (*.gateway.ts)               │
+│  ・Portインターフェースの実装              │
+│  ・@nestjs/axios によるHTTP通信           │
+│  ・ダウンストリームのレスポンスをドメイン型に変換│
+└─────────────────────────────────────────┘
+```
+
+### 設計ルール
+
+**Usecase**
+- 1ファイル1クラス。`execute(input): Promise<output>` のみ持つ。
+- コンストラクタには、そのユースケースで使う Port インターフェースだけを注入する。
+- 他の Usecase を直接 import・注入しない。
+
+**Port（インターフェース）**
+- `port/` ディレクトリに `interface` として定義する。
+- Gateway の実装詳細（axios 等）を Usecase から隠蔽する。
+- テスト時はこの interface を jest.fn() で実装したモックに差し替えるだけでよい。
+
+**Gateway**
+- Port インターフェースを `implements` する形で実装する。
+- ダウンストリームサービスの HTTP/gRPC 通信のみを担当する。
+
+### Usecase テストの構造
+
+各 Usecase のユニットテストで注入が必要なモックは **そのユースケースが依存する Port のみ** に限定される。
+
+```typescript
+// get-user.usecase.spec.ts — 注入するモックは1つだけ
+describe('GetUserUsecase', () => {
+  let usecase: GetUserUsecase;
+  let userGateway: jest.Mocked<UserGatewayPort>;
+
+  beforeEach(() => {
+    userGateway = { findById: jest.fn() };
+    usecase = new GetUserUsecase(userGateway); // DI コンテナ不要
+  });
+
+  it('ユーザーを返す', async () => {
+    userGateway.findById.mockResolvedValue({ id: '1', name: 'Alice' });
+    const result = await usecase.execute({ id: '1' });
+    expect(result.name).toBe('Alice');
+  });
+});
+```
+
+### モジュール登録例
+
+```typescript
+// {feature}.module.ts
+@Module({
+  imports: [HttpModule],
+  controllers: [FeatureController],
+  providers: [
+    FeatureGateway,
+    { provide: FEATURE_GATEWAY_PORT, useExisting: FeatureGateway },
+    GetFeatureUsecase,
+    CreateFeatureUsecase,
+  ],
+})
+export class FeatureModule {}
+```
 
 ## API設計方針
 

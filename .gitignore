@@ -1,3 +1,9 @@
 */node_modules/
 .next
 dist/
+coverage/
+
+# Environment variables
+.env
+.env.*
+!.env.example
