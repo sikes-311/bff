@@ -52,18 +52,11 @@ describe('GetStockChartUsecase', () => {
       const result = await usecase.execute('トヨタ自動車', '6m');
 
       // Assert
-      expect(result.data.name).toBe('トヨタ自動車');
-      expect(result.data.period).toBe('6m');
-      expect(result.data.items).toHaveLength(2);
-      expect(result.data.items[0]).toEqual({
-        date: '2025-10-01',
-        priceJpy: 305000,
-      });
-      expect(result.data.items[1]).toEqual({
-        date: '2025-11-01',
-        priceJpy: 325000,
-      });
-      expect(result.meta.timestamp).toBeDefined();
+      expect(result.name).toBe('トヨタ自動車');
+      expect(result.period).toBe('6m');
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0]).toEqual({ date: '2025-10-01', priceJpy: 305000 });
+      expect(result.items[1]).toEqual({ date: '2025-11-01', priceJpy: 325000 });
     });
 
     // @SC-11: 片方のみにある日付はそのまま使用
@@ -76,15 +69,9 @@ describe('GetStockChartUsecase', () => {
       const result = await usecase.execute('トヨタ自動車', '6m');
 
       // Assert
-      expect(result.data.items).toHaveLength(2);
-      expect(result.data.items[0]).toEqual({
-        date: '2025-10-01',
-        priceJpy: 300000,
-      });
-      expect(result.data.items[1]).toEqual({
-        date: '2025-11-01',
-        priceJpy: 330000,
-      });
+      expect(result.items).toHaveLength(2);
+      expect(result.items[0]).toEqual({ date: '2025-10-01', priceJpy: 300000 });
+      expect(result.items[1]).toEqual({ date: '2025-11-01', priceJpy: 330000 });
     });
 
     // 片方のサービスのみ成功時
@@ -97,8 +84,8 @@ describe('GetStockChartUsecase', () => {
       const result = await usecase.execute('トヨタ自動車', '6m');
 
       // Assert
-      expect(result.data.items).toHaveLength(1);
-      expect(result.data.items[0].priceJpy).toBe(300000);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].priceJpy).toBe(300000);
     });
 
     it('正常系: GatewayBのみ成功した場合はBの結果を返す', async () => {
@@ -110,8 +97,8 @@ describe('GetStockChartUsecase', () => {
       const result = await usecase.execute('トヨタ自動車', '6m');
 
       // Assert
-      expect(result.data.items).toHaveLength(1);
-      expect(result.data.items[0].priceJpy).toBe(310000);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].priceJpy).toBe(310000);
     });
 
     // @SC-15: 両方失敗時
@@ -129,7 +116,7 @@ describe('GetStockChartUsecase', () => {
     // 無効な period
     it('異常系: 無効なperiodの場合はBadRequestExceptionをスロー', async () => {
       // Act & Assert
-      await expect(usecase.execute('トヨタ自動車', 'invalid' as any)).rejects.toThrow(
+      await expect(usecase.execute('トヨタ自動車', 'invalid')).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -168,7 +155,7 @@ describe('GetStockChartUsecase', () => {
       const result = await usecase.execute('トヨタ自動車', '6m');
 
       // Assert
-      expect(result.data.items.map((i) => i.date)).toEqual([
+      expect(result.items.map((i) => i.date)).toEqual([
         '2025-10-01',
         '2025-11-01',
         '2025-12-01',
@@ -189,7 +176,7 @@ describe('GetStockChartUsecase', () => {
       gatewayB.getStockChart.mockResolvedValue([]);
 
       // Act
-      await usecase.execute('トヨタ自動車', period as any);
+      await usecase.execute('トヨタ自動車', period);
 
       // Assert
       const [, from, to] = gatewayA.getStockChart.mock.calls[0];

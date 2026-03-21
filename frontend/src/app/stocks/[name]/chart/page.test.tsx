@@ -14,15 +14,12 @@ vi.mock('@/hooks/use-stock-chart', () => ({
 import { useStockChart } from '@/hooks/use-stock-chart';
 
 const mockChartData = {
-  data: {
-    name: 'トヨタ自動車',
-    period: '6m' as const,
-    items: [
-      { date: '2025-10-01', priceJpy: 300000 },
-      { date: '2025-11-01', priceJpy: 310000 },
-    ],
-  },
-  meta: { timestamp: '2026-03-21T00:00:00Z' },
+  name: 'トヨタ自動車',
+  period: '6m' as const,
+  items: [
+    { date: '2025-10-01', priceJpy: 300000 },
+    { date: '2025-11-01', priceJpy: 310000 },
+  ],
 };
 
 describe('StockChartPage', () => {

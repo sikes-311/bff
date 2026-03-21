@@ -11,15 +11,12 @@ vi.mock('@/lib/api/stock-chart', () => ({
 import { fetchStockChart } from '@/lib/api/stock-chart';
 
 const mockChartResponse = {
-  data: {
-    name: 'トヨタ自動車',
-    period: '6m' as const,
-    items: [
-      { date: '2025-10-01', priceJpy: 300000 },
-      { date: '2025-11-01', priceJpy: 310000 },
-    ],
-  },
-  meta: { timestamp: '2026-03-21T00:00:00Z' },
+  name: 'トヨタ自動車',
+  period: '6m' as const,
+  items: [
+    { date: '2025-10-01', priceJpy: 300000 },
+    { date: '2025-11-01', priceJpy: 310000 },
+  ],
 };
 
 const createWrapper = () => {
@@ -48,8 +45,8 @@ describe('useStockChart', () => {
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    expect(result.current.data?.data.name).toBe('トヨタ自動車');
-    expect(result.current.data?.data.items).toHaveLength(2);
+    expect(result.current.data?.name).toBe('トヨタ自動車');
+    expect(result.current.data?.items).toHaveLength(2);
     expect(fetchStockChart).toHaveBeenCalledWith('トヨタ自動車', '6m');
   });
 

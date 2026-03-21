@@ -41,7 +41,7 @@ export default function StockChartPage() {
         {data && (
           <div data-testid="stock-chart">
             {/* SC-11〜SC-14 で Recharts を追加 */}
-            <p>{data.data.items.length} 件のデータ</p>
+            <p>{data.items.length} 件のデータ</p>
           </div>
         )}
       </div>

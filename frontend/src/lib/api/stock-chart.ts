@@ -1,8 +1,9 @@
 import { apiClient, ApiResponse } from './client';
-import { StockChartResponse } from '@/types/stock-chart';
+import { StockChartData } from '@/types/stock-chart';
+import { ChartPeriod } from '@/types/stock-chart';
 
-export async function fetchStockChart(name: string, period: string): Promise<StockChartResponse> {
-  const response = await apiClient.get<ApiResponse<StockChartResponse>>(
+export async function fetchStockChart(name: string, period: ChartPeriod): Promise<StockChartData> {
+  const response = await apiClient.get<ApiResponse<StockChartData>>(
     `/stocks/${encodeURIComponent(name)}/chart`,
     { params: { period } },
   );

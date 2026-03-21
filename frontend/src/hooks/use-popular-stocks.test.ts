@@ -31,11 +31,7 @@ describe('usePopularStocks', () => {
 
   it('正常系: データが正しく返される', async () => {
     // Arrange
-    const mockResponse = {
-      data: mockStocks,
-      meta: { timestamp: '2026-03-21T00:00:00Z' },
-    };
-    vi.mocked(getPopularStocks).mockResolvedValue(mockResponse);
+    vi.mocked(getPopularStocks).mockResolvedValue(mockStocks);
 
     // Act
     const { result } = renderHook(() => usePopularStocks(), { wrapper: createWrapper() });
@@ -44,8 +40,8 @@ describe('usePopularStocks', () => {
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    expect(result.current.data?.data).toHaveLength(2);
-    expect(result.current.data?.data[0].name).toBe('Apple Inc.');
+    expect(result.current.data).toHaveLength(2);
+    expect(result.current.data?.[0].name).toBe('Apple Inc.');
   });
 
   it('異常系: エラー時にエラーが返される', async () => {

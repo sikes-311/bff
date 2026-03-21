@@ -28,7 +28,7 @@ export default function StocksPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('gain');
 
   const sortedStocks = useMemo(
-    () => (data ? sortStocks(data.data, sortOrder) : []),
+    () => (data ? sortStocks(data, sortOrder) : []),
     [data, sortOrder]
   );
 

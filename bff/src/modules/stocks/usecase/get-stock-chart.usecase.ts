@@ -36,12 +36,9 @@ export class GetStockChartUsecase {
     const items = StockChartSeries.merge(pointsA, pointsB);
 
     return {
-      data: {
-        name,
-        period: chartPeriod.value,
-        items: items.map((p) => ({ date: p.date, priceJpy: p.priceJpy })),
-      },
-      meta: { timestamp: new Date().toISOString() },
+      name,
+      period: chartPeriod.value,
+      items: items.map((p) => ({ date: p.date, priceJpy: p.priceJpy })),
     };
   }
 }

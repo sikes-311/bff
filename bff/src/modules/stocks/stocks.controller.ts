@@ -9,7 +9,7 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { GetPopularStocksUsecase } from './usecase/get-popular-stocks.usecase';
-import { PopularStocksResponseDto } from './dto/stock-response.dto';
+import { StockRateDto } from './dto/stock-response.dto';
 import { GetStockChartUsecase } from './usecase/get-stock-chart.usecase';
 import { StockChartResponseDto } from './dto/stock-chart-response.dto';
 
@@ -25,8 +25,8 @@ export class StocksController {
 
   @Get('popular')
   @ApiOperation({ summary: '人気上位5銘柄の株価レート一覧取得' })
-  @ApiResponse({ status: 200, type: PopularStocksResponseDto })
-  async getPopularStocks(): Promise<PopularStocksResponseDto> {
+  @ApiResponse({ status: 200, type: [StockRateDto] })
+  async getPopularStocks(): Promise<StockRateDto[]> {
     return this.getPopularStocksUsecase.execute();
   }
 

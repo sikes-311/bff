@@ -14,15 +14,4 @@ export class StockRateDto {
   changePercent!: number;
 }
 
-class MetaDto {
-  @ApiProperty({ description: 'レスポンス生成日時 (ISO 8601)' })
-  timestamp!: string;
-}
-
-export class PopularStocksResponseDto {
-  @ApiProperty({ description: '株価レート一覧', type: [StockRateDto] })
-  data!: StockRateDto[];
-
-  @ApiProperty({ description: 'メタ情報', type: MetaDto })
-  meta!: MetaDto;
-}
+export type PopularStocksResponseDto = StockRateDto[];

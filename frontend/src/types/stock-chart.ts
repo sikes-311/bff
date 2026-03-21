@@ -5,11 +5,8 @@ export type StockChartPoint = {
   priceJpy: number;
 };
 
-export type StockChartResponse = {
-  data: {
-    name: string;
-    period: ChartPeriod;
-    items: StockChartPoint[];
-  };
-  meta: { timestamp: string };
+export type StockChartData = {
+  name: string;
+  period: ChartPeriod;
+  items: StockChartPoint[];
 };

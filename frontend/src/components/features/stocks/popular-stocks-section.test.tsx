@@ -65,7 +65,7 @@ describe('PopularStocksSection', () => {
   it('正常系: 成功時に5枚のstock-cardが表示される', () => {
     // Arrange
     mockUsePopularStocks.mockReturnValue({
-      data: { data: mockStocks, meta: { timestamp: '2026-03-21T00:00:00Z' } },
+      data: mockStocks,
       isLoading: false,
       isError: false,
     });

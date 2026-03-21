@@ -31,17 +31,12 @@ export class GetPopularStocksUsecase {
 
     const merged = this.mergeAndAverage(stocksA, stocksB);
 
-    const data: StockRateDto[] = merged.map((stock) => ({
+    return merged.map((stock) => ({
       name: stock.name,
       priceJpy: stock.priceJpy * 100,
       priceUsd: stock.priceUsd * 100,
       changePercent: stock.changePercent,
     }));
-
-    return {
-      data,
-      meta: { timestamp: new Date().toISOString() },
-    };
   }
 
   private mergeAndAverage(stocksA: Stock[], stocksB: Stock[]): Stock[] {

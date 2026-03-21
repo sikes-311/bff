@@ -42,11 +42,6 @@ describe('GetPopularStocksUsecase', () => {
   describe('execute', () => {
     it('正常系: 両システムに存在する銘柄は平均値になる', async () => {
       // Arrange
-      // Stock内部ではpriceJpyPer100/100で保持。responseではpriceJpy*100で返す。
-      // GatewayA: AAPL priceJpy=3500 (per100=350000), priceUsd=24 (per100=2400)
-      // GatewayB: AAPL priceJpy=3600 (per100=360000), priceUsd=26 (per100=2600)
-      // 平均: priceJpy=(3500+3600)/2=3550, priceUsd=(24+26)/2=25
-      // レスポンス: priceJpy=3550*100=355000, priceUsd=25*100=2500
       const stockA = createStock('AAPL', 350000, 2400, 1.0);
       const stockB = createStock('AAPL', 360000, 2600, 3.0);
 
@@ -57,14 +52,13 @@ describe('GetPopularStocksUsecase', () => {
       const result = await usecase.execute();
 
       // Assert
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0]).toEqual({
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
         name: 'AAPL',
         priceJpy: 355000,
         priceUsd: 2500,
         changePercent: 2.0,
       });
-      expect(result.meta.timestamp).toBeDefined();
     });
 
     it('正常系: 片方のみに存在する銘柄はその値がそのまま使われる', async () => {
@@ -79,14 +73,14 @@ describe('GetPopularStocksUsecase', () => {
       const result = await usecase.execute();
 
       // Assert
-      expect(result.data).toHaveLength(2);
-      expect(result.data[0]).toEqual({
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
         name: 'AAPL',
         priceJpy: 350000,
         priceUsd: 2400,
         changePercent: 1.0,
       });
-      expect(result.data[1]).toEqual({
+      expect(result[1]).toEqual({
         name: 'GOOG',
         priceJpy: 200000,
         priceUsd: 1500,
@@ -126,8 +120,8 @@ describe('GetPopularStocksUsecase', () => {
       const result = await usecase.execute();
 
       // Assert
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0].name).toBe('AAPL');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('AAPL');
     });
 
     it('正常系: GatewayBのみエラーの場合もGatewayAの結果を使用する', async () => {
@@ -140,8 +134,8 @@ describe('GetPopularStocksUsecase', () => {
       const result = await usecase.execute();
 
       // Assert
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0].name).toBe('GOOG');
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('GOOG');
     });
   });
 });

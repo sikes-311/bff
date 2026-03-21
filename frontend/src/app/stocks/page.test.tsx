@@ -27,7 +27,7 @@ describe('StocksPage', () => {
     it('正常系: データ取得後に値上がり順（changePercent 降順）でレンダリングされる [SC-7]', () => {
       // Arrange
       mockUsePopularStocks.mockReturnValue({
-        data: { data: mockStocks, meta: { timestamp: '2026-03-21T00:00:00Z' } },
+        data: mockStocks,
         isLoading: false,
         isError: false,
       });
@@ -53,7 +53,7 @@ describe('StocksPage', () => {
     it('正常系: sort-select を loss に変更すると値下がり順（changePercent 昇順）でレンダリングされる [SC-8]', async () => {
       // Arrange
       mockUsePopularStocks.mockReturnValue({
-        data: { data: mockStocks, meta: { timestamp: '2026-03-21T00:00:00Z' } },
+        data: mockStocks,
         isLoading: false,
         isError: false,
       });
@@ -86,7 +86,7 @@ describe('StocksPage', () => {
         { name: 'キーエンス', priceJpy: 700000, priceUsd: 4630.0, changePercent: 1.0 },
       ];
       mockUsePopularStocks.mockReturnValue({
-        data: { data: tiedStocks, meta: { timestamp: '2026-03-21T00:00:00Z' } },
+        data: tiedStocks,
         isLoading: false,
         isError: false,
       });

@@ -4,8 +4,3 @@ export type StockRate = {
   priceUsd: number;
   changePercent: number;
 };
-
-export type PopularStocksResponse = {
-  data: StockRate[];
-  meta: { timestamp: string };
-};
