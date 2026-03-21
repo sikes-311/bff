@@ -385,5 +385,6 @@ Feature: 人気トップ5株銘柄のレート情報表示
 | 2   | Frontend実装: 株価カードコンポーネント・APIクライアント・フック・株価一覧ページ・トップページ修正 | frontend-agent        | -      |
 | 3   | BFF ユニットテスト                                                                                | backend-test-agent    | #1     |
 | 4   | Frontend ユニットテスト                                                                           | frontend-test-agent   | #2     |
-| 5   | 内部品質レビュー                                                                                  | code-review-agent     | #1〜#4 |
-| 6   | セキュリティレビュー                                                                              | security-review-agent | #1〜#2 |
+| 5   | アーキテクチャテスト (`src/arch/arch.spec.ts`) — DIP 依存方向の自動検証                          | backend-test-agent    | #1     |
+| 6   | 内部品質レビュー                                                                                  | code-review-agent     | #1〜#5 |
+| 7   | セキュリティレビュー                                                                              | security-review-agent | #1〜#2 |

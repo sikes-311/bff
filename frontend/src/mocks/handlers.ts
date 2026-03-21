@@ -1,7 +1,16 @@
 import { http, HttpResponse } from 'msw';
 import type { User } from '@/types/user';
+import type { StockRate } from '@/types/stock';
 
 const BASE_URL = 'http://localhost:3001';
+
+const mockPopularStocks: StockRate[] = [
+  { name: 'Apple Inc.', priceJpy: 25000, priceUsd: 170.5, changePercent: 1.25 },
+  { name: 'Google', priceJpy: 20000, priceUsd: 140.0, changePercent: -0.5 },
+  { name: 'Amazon', priceJpy: 18000, priceUsd: 120.0, changePercent: 2.1 },
+  { name: 'Microsoft', priceJpy: 50000, priceUsd: 340.0, changePercent: 0.3 },
+  { name: 'Tesla', priceJpy: 30000, priceUsd: 200.0, changePercent: -1.8 },
+];
 
 const mockUsers: User[] = [
   { id: '1', name: 'Alice', email: 'alice@example.com', role: 'admin', createdAt: '2024-01-01T00:00:00Z' },
@@ -26,6 +35,13 @@ export const handlers = [
   http.get(`${BASE_URL}/api/v1/users`, () => {
     return HttpResponse.json({
       data: { items: mockUsers, total: 2, page: 1, limit: 20 },
+      meta: { timestamp: new Date().toISOString() },
+    });
+  }),
+
+  http.get(`${BASE_URL}/api/v1/stocks/popular`, () => {
+    return HttpResponse.json({
+      data: mockPopularStocks,
       meta: { timestamp: new Date().toISOString() },
     });
   }),

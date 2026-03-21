@@ -133,9 +133,8 @@ export class CreateUserDto {
 - 想定外エラー: `InternalServerErrorException` に変換してログ記録
 
 ### テスト (BFF)
-- **Unit Test**: Service・Controller ごとに作成 (`*.spec.ts`)
-- **e2e Test**: 主要エンドポイントをカバー (`test/*.e2e-spec.ts`)
-- ダウンストリームサービスは **Jest モック** (`jest.mock`, `jest.spyOn`)
+- **Unit Test**: Domain・Usecase・Gateway・Controller ごとに作成 (`*.spec.ts`)
+- ダウンストリームサービス（Gateway）は **Jest モック** で差し替え
 - カバレッジ目標: 80%以上
 
 ---
@@ -190,9 +189,17 @@ export async function fetchUsers(params: GetUsersParams): Promise<UsersResponse>
 - コンポーネントレベル: `try/catch` + `toast` 通知
 
 ### テスト (Frontend)
-- **Unit Test**: コンポーネント単体テスト (`*.test.tsx`) - Vitest + Testing Library
-- **インテグレーションテスト**: ページ単位 - MSW でAPIモック
+- **Unit Test**: コンポーネント・フックのユニットテスト (`*.test.tsx` / `*.test.ts`) - Vitest + Testing Library
+- モック境界:
+  - **コンポーネントテスト**: フック層でモック (`vi.mock('@/hooks/use-xxx')`) — コンポーネントの描画ロジックに集中
+  - **フックテスト**: API関数層でモック (`vi.mock('@/lib/api/xxx')`) — React Query の状態管理ロジックをテスト
+- MSW は使用しない（jsdom 環境では axios の XHR アダプターが MSW Node インターセプターに届かないため）
 - カバレッジ目標: 70%以上
+
+### テスト (E2E)
+- **Playwright**: `frontend/e2e/` で管理 — フロントエンド・BFF は実サーバー、ダウンストリームのみ `mock-server.mjs` でモック
+- E2E テストは BDD シナリオ（SC-1, SC-2, ...）と 1:1 で対応させる
+- `data-testid` 属性を通じてセレクターを安定させる
 
 ---
 
@@ -224,9 +231,15 @@ it('正常系: ユーザーを作成できる', async () => {
 ```
 
 ### モック方針
-- 外部サービス（HTTP通信）は必ずモック
-- データベース（存在する場合）はインメモリ or テスト用DBを使用
-- `jest.clearAllMocks()` を `beforeEach` で実行
+
+| テスト種別 | モック境界 | 実サーバー |
+|---|---|---|
+| BFF Unit Test | Gateway（jest.fn() で差し替え） | Domain / Usecase / Controller |
+| Frontend Component Test | フック層（vi.mock '@/hooks/use-xxx'） | コンポーネント |
+| Frontend Hook Test | API関数層（vi.mock '@/lib/api/xxx'） | フック・React Query |
+| E2E (Playwright) | Downstream のみ（mock-server.mjs） | Frontend / BFF / Auth |
+
+- `jest.clearAllMocks()` / `vi.clearAllMocks()` を `beforeEach` で実行
 
 ---
 

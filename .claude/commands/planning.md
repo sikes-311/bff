@@ -12,9 +12,11 @@ GitHubのIssueを分析し、設計・影響調査・タスク計画をまとめ
 ```
 Step 1: Issue分析                  → 機能概要・受け入れ基準を把握
 Step 2: 設計 & APIコントラクト定義  → アーキテクチャ影響範囲・型定義・クラス図・シーケンス図
-Step 3: 既存機能への影響調査        → 破壊的変更リスクを洗い出す
+Step 3: BDDシナリオ定義            → Gherkin（UI仕様まで含めた具体的な記述）
+Step 4: Downstreamモックデータ設計  → シナリオごとのモックデータを決定
+Step 5: 既存機能への影響調査        → 破壊的変更リスクを洗い出す
          ↓ ユーザー確認・承認
-Step 4: plan.md 生成               → docs/issues/{issue番号}/plan.md に保存
+Step 6: plan.md 生成               → docs/issues/{issue番号}/plan.md に保存
 ```
 
 ---
@@ -90,25 +92,14 @@ classDiagram
     +{method}(params) Promise~{DownstreamDto}[]~
   }
 
-  class {DownstreamDto} {
-    +{fields}
-  }
-
-  class {ResponseDto} {
-    +{fields}
-  }
-
   {Feature}Controller --> {Usecase} : uses
   {Usecase} --> {GatewayPort} : depends on
   {Gateway} ..|> {GatewayPort} : implements
-  {Gateway} ..> {DownstreamDto} : returns
-  {Usecase} ..> {ResponseDto} : returns
 ```
 
 **ルール**:
 - 依存の方向は必ず Controller → Usecase → Port ← Gateway とすること
 - ダウンストリームDTOとBFFレスポンスDTOを別クラスとして明示すること
-- 複数 Gateway が存在する場合は全て記載すること
 
 #### シーケンス図
 
@@ -125,7 +116,6 @@ sequenceDiagram
 
   User->>FE: 操作
   FE->>CTL: GET /api/v1/{resource}
-
   CTL->>UC: execute()
   UC->>GW: {method}(params)
   GW->>Sys: HTTP リクエスト
@@ -141,37 +131,82 @@ sequenceDiagram
 - 正常系と異常系を必ず別図で描くこと
 - 異常系は外部システムのエラーがどのように伝播するかを明示すること
 
-### 2-4. BDDシナリオ一覧の整理
+---
+
+## Step 3: BDDシナリオ定義
 
 受け入れ基準をもとに Gherkin 形式でシナリオを定義します。
 各シナリオには **シナリオID（SC-1, SC-2, ...）** を付与します。
+
+### Gherkin の具体化ルール
+
+e2e-agent が実装前にテストを書けるよう、Gherkin は **UI コントラクトレベルまで具体的に記述** してください。
+
+| 項目 | 悪い例（あいまい） | 良い例（具体的） |
+|---|---|---|
+| 要素の特定 | `Then 株価カードが表示される` | `Then "[data-testid="stock-card"]" が5件表示される` |
+| 表示値の確認 | `And 株価が表示される` | `And "[data-testid="stock-price-jpy"]" に "355,000" が含まれる` |
+| ページ遷移 | `Then 一覧ページへ遷移する` | `Then URL が "/stocks" になる` |
+| エラー表示 | `Then エラーが表示される` | `Then "[data-testid="stocks-error"]" に "現在株価を表示できません。" が表示される` |
 
 ```gherkin
 Feature: {機能名}
 
   Background:
-    Given ユーザーがログイン済みである
+    Given ユーザーが "test@example.com" / "password123" でログイン済みである
+    And トップページ "/" が表示されている
 
   @SC-1
   Scenario: {正常系シナリオ名}
-    Given {前提条件}
-    When  {操作}
-    Then  {期待結果}
+    Given {前提条件（data-testidや具体的なデータを含む）}
+    When  {操作（ボタン名・リンクテキスト・URLを含む）}
+    Then  {期待結果（data-testid・表示値・URL を含む）}
 
   @SC-2
   Scenario: {異常系シナリオ名}
-    Given {前提条件}
-    When  {不正な操作}
-    Then  {エラーが表示される}
+    Given Downstream Service A と B がエラーを返す状態である
+    When  ユーザーがトップページにアクセスする
+    Then  "[data-testid="stocks-error"]" に "現在株価を表示できません。" が表示される
 ```
 
 **ルール**:
 - 受け入れ基準を1つ残らずシナリオに対応させること
 - 正常系・異常系・境界値を網羅すること
+- `data-testid` はこの Gherkin がコントラクトとなるため、frontend-agent が実装時に必ず付与する
 
 ---
 
-## Step 3: 既存機能への影響調査
+## Step 4: Downstream モックデータ設計
+
+E2E テストは `bff/mock-server.mjs` の Downstream モックに依存します。
+各シナリオが期待する具体的なデータを設計してください。
+
+```markdown
+## Downstream モックデータ設計
+
+### Service A (port 4001) / Service B (port 4002) のデータ
+
+| フィールド | Service A | Service B | BFF が返す値 | 対応シナリオ |
+|---|---|---|---|---|
+| トヨタ自動車 price_jpy | 350,000 | 360,000 | 355,000（平均） | SC-4 |
+| キーエンス price_jpy | 4,000,000 | (存在しない) | 4,000,000 | SC-5 |
+
+### エラー制御 (SC-6 用)
+- POST /admin/force-error → Service A・B をエラーモードに切替
+- POST /admin/clear-error → エラーモード解除
+```
+
+`bff/mock-server.mjs` を実際に確認し、既存データと整合していることを検証してください。
+
+```bash
+cat bff/mock-server.mjs
+```
+
+シナリオに必要なデータが mock-server.mjs に存在しない場合は、追加すべきデータを plan.md に記載してください（追加実装は backend-agent が担当）。
+
+---
+
+## Step 5: 既存機能への影響調査
 
 ### 調査方針
 
@@ -180,11 +215,9 @@ Feature: {機能名}
 #### 1. ビジネスロジック・意味的な変更リスク（最重要）
 
 - **新しい値・状態の追加**: 既存の条件分岐でその値が考慮されていないケースはないか
-  - 例: `if (status === 'active')` という条件が他の場所にある場合、新ステータスはこの条件を通過してしまわないか
 - **既存の網羅条件の崩れ**: `switch` 文・ガード節・フィルタ条件が「既存の全パターンを網羅している前提」で書かれていないか
 - **集計・一覧の意味変化**: 今回の追加・変更により、既存の一覧取得・集計結果が変わらないか
 - **権限・アクセス制御の穴**: 新機能の追加により、認可ルールに抜け穴が生まれないか
-- **外部サービス・連携への影響**: 今回の変更が外部 API・通知などの連携処理に影響しないか
 
 #### 2. データモデル・型の変更リスク
 
@@ -194,7 +227,6 @@ Feature: {機能名}
 #### 3. API レスポンス変更のリスク
 
 - 今回変更・追加するエンドポイントを既存のフロントエンドコードが利用していないか
-- レスポンス構造が変わる場合、既存のクライアントコードが壊れないか
 
 #### 4. 共有モジュール・共通コンポーネントの変更リスク
 
@@ -206,7 +238,7 @@ grep -rn "{変更対象キーワード}" --include="*.ts" --include="*.tsx" .
 
 ---
 
-## Step 4: ユーザー確認 & plan.md 生成
+## Step 6: ユーザー確認 & plan.md 生成
 
 調査結果をユーザーに提示し、**承認を得てから `plan.md` を生成してください**。
 
@@ -223,13 +255,12 @@ grep -rn "{変更対象キーワード}" --include="*.ts" --include="*.tsx" .
 | SC-1 | ... | 正常系 |
 | SC-2 | ... | 異常系 |
 
+### Downstream モックデータ
+{追加・変更が必要なデータの概要}
+
 ### 既存機能への影響
 | リスク | 種別 | 対処方針 |
 |---|---|---|
-
-### タスク計画
-| タスク | 担当エージェント |
-|---|---|
 
 この計画で問題ありませんか？ [yes / 修正内容を記載]
 ```
@@ -263,35 +294,33 @@ Issue URL: {url}
 ### エンドポイント
 | メソッド | パス | 説明 |
 |---|---|---|
-| POST | /api/v1/{resource} | ... |
+| GET | /api/v1/{resource} | ... |
 
 ### 型定義
-```typescript
-// リクエスト・レスポンス型（shared/types/{feature}.ts 参照）
-```
+（shared/types/{feature}.ts 参照）
 
 ## BFF クラス図
 
-```mermaid
+\`\`\`mermaid
 classDiagram
   %% Step 2-3 で作成したクラス図をそのまま貼り付ける
-```
+\`\`\`
 
 ## シーケンス図
 
 ### 正常系
 
-```mermaid
+\`\`\`mermaid
 sequenceDiagram
   %% Step 2-3 で作成した正常系シーケンス図をそのまま貼り付ける
-```
+\`\`\`
 
 ### 異常系
 
-```mermaid
+\`\`\`mermaid
 sequenceDiagram
   %% Step 2-3 で作成した異常系シーケンス図をそのまま貼り付ける
-```
+\`\`\`
 
 ## BDD シナリオ一覧
 
@@ -302,12 +331,29 @@ sequenceDiagram
 
 ### シナリオ詳細（Gherkin）
 
-```gherkin
+\`\`\`gherkin
 Feature: {機能名}
 
+  Background:
+    Given ユーザーが "test@example.com" / "password123" でログイン済みである
+
   @SC-1
-  Scenario: ...
-```
+  Scenario: {シナリオ名}
+    Given ...
+    When  ...
+    Then  "[data-testid="xxx"]" が表示される
+\`\`\`
+
+## Downstream モックデータ設計
+
+### Service A (port 4001) / Service B (port 4002)
+
+| フィールド | Service A | Service B | BFF が返す値 | 対応シナリオ |
+|---|---|---|---|---|
+| {銘柄} {フィールド} | {値} | {値} | {値} | SC-X |
+
+### mock-server.mjs への変更
+{追加・変更が必要な場合のみ記載。不要なら「変更不要」と記載}
 
 ## 既存機能への影響調査結果
 
@@ -324,14 +370,21 @@ Feature: {機能名}
 
 ## タスク計画
 
+### Phase A: テストファースト（実装開始前・シナリオごとに実施）
+| # | 内容 | 担当エージェント |
+|---|---|---|
+| A-1 | E2Eテスト先行作成（シナリオ単位） | e2e-agent |
+
+### Phase B: 実装（テスト承認後・シナリオごとに実施）
 | # | 内容 | 担当エージェント | 依存 |
 |---|---|---|---|
-| 1 | BFF実装 | backend-agent | - |
-| 2 | Frontend実装 | frontend-agent | - |
-| 3 | BFF ユニットテスト | backend-test-agent | #1 |
-| 4 | Frontend ユニットテスト | frontend-test-agent | #2 |
-| 5 | 内部品質レビュー | code-review-agent | #1〜#4 |
-| 6 | セキュリティレビュー | security-review-agent | #1〜#2 |
+| B-1 | BFF実装 | backend-agent | A-1承認 |
+| B-2 | Frontend実装 | frontend-agent | A-1承認 |
+| B-3 | BFF ユニットテスト | backend-test-agent | B-1 |
+| B-4 | Frontend ユニットテスト | frontend-test-agent | B-2 |
+| B-5 | E2E テスト実行・Pass確認 | e2e-agent | B-1・B-2 |
+| B-6 | 内部品質レビュー | code-review-agent | B-1〜B-4 |
+| B-7 | セキュリティレビュー | security-review-agent | B-1・B-2 |
 ```
 
 生成完了後、以下を出力してください。

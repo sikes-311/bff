@@ -61,7 +61,7 @@ describe('LoginForm', () => {
         email: 'test@example.com',
         password: 'password123',
       });
-      expect(mockPush).toHaveBeenCalledWith('/users');
+      expect(mockPush).toHaveBeenCalledWith('/');
     });
   });
 

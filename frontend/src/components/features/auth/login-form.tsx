@@ -33,7 +33,7 @@ export function LoginForm() {
     try {
       setServerError(null);
       await login(data);
-      router.push('/users');
+      router.push('/');
     } catch {
       setServerError('メールアドレスまたはパスワードが正しくありません');
     }

@@ -1,10 +1,19 @@
+'use client';
+
 import Link from 'next/link';
+import { useAuth } from '@/contexts/auth-context';
+import { PopularStocksSection } from '@/components/features/stocks/popular-stocks-section';
 
 export default function Home() {
+  const { user } = useAuth();
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">BFF Application</h1>
+
+        {user && <PopularStocksSection />}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             href="/users"
