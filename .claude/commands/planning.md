@@ -138,41 +138,56 @@ sequenceDiagram
 受け入れ基準をもとに Gherkin 形式でシナリオを定義します。
 各シナリオには **シナリオID（SC-1, SC-2, ...）** を付与します。
 
-### Gherkin の具体化ルール
+### Gherkin の記述レベル
 
-e2e-agent が実装前にテストを書けるよう、Gherkin は **UI コントラクトレベルまで具体的に記述** してください。
+**`.feature` ファイルと `.spec.ts` ファイルで記述レベルを明確に分離してください。**
 
-| 項目 | 悪い例（あいまい） | 良い例（具体的） |
+| ファイル | 対象読者 | 記述レベル | 含めてよいもの |
+|---|---|---|---|
+| `.feature` | PO・テスター・開発者全員 | **振る舞い（ユーザー視点）** | 操作・期待する状態・表示される文言 |
+| `.spec.ts` | 開発者・e2e-agent | **実装詳細（UI コントラクト）** | `data-testid`・内部値・URL・セレクター |
+
+#### `.feature` の書き方（振る舞い記述）
+
+`.feature` ファイルは非エンジニアが読んでも「何ができるか」が伝わる記述にしてください。`data-testid` や内部値（`"gain"`, `"loss"` など）は書かないこと。
+
+| 項目 | 悪い例（実装詳細が混入） | 良い例（振る舞い記述） |
 |---|---|---|
-| 要素の特定 | `Then 株価カードが表示される` | `Then "[data-testid="stock-card"]" が5件表示される` |
-| 表示値の確認 | `And 株価が表示される` | `And "[data-testid="stock-price-jpy"]" に "355,000" が含まれる` |
-| ページ遷移 | `Then 一覧ページへ遷移する` | `Then URL が "/stocks" になる` |
-| エラー表示 | `Then エラーが表示される` | `Then "[data-testid="stocks-error"]" に "現在株価を表示できません。" が表示される` |
+| 要素の特定 | `Then "[data-testid="stock-card"]" が5件表示される` | `Then 人気上位5銘柄の株価カードが表示される` |
+| 内部値の確認 | `And "[data-testid="sort-select"]" の値が "gain" である` | `And デフォルトの並び順が「値上がり順」である` |
+| ページ遷移 | `Then URL が "/stocks" になる` | `Then 株価一覧ページが表示される` |
+| エラー表示 | `Then "[data-testid="stocks-error"]" に "現在株価を表示できません。" が表示される` | `Then 株価を表示できない旨のエラーメッセージが表示される` |
 
 ```gherkin
 Feature: {機能名}
 
   Background:
-    Given ユーザーが "test@example.com" / "password123" でログイン済みである
-    And トップページ "/" が表示されている
+    Given ユーザーがログイン済みである
 
   @SC-1
-  Scenario: {正常系シナリオ名}
-    Given {前提条件（data-testidや具体的なデータを含む）}
-    When  {操作（ボタン名・リンクテキスト・URLを含む）}
-    Then  {期待結果（data-testid・表示値・URL を含む）}
+  Scenario: {正常系シナリオ名（ユーザーが何を達成できるか）}
+    Given {前提条件（ユーザーが見ている状態）}
+    When  {ユーザーの操作（ボタン名・リンクテキスト等）}
+    Then  {期待する振る舞い（ユーザーが観察できる状態）}
+```
 
-  @SC-2
-  Scenario: {異常系シナリオ名}
-    Given Downstream Service A と B がエラーを返す状態である
-    When  ユーザーがトップページにアクセスする
-    Then  "[data-testid="stocks-error"]" に "現在株価を表示できません。" が表示される
+#### `.spec.ts` の書き方（UI コントラクト）
+
+e2e-agent が実装前にテストを書けるよう、`.spec.ts` は **`data-testid`・期待値・URLを含む具体的な記述** にしてください。
+
+```typescript
+// @SC-1
+test('SC-1: {シナリオ名}', async ({ page }) => {
+  // data-testid セレクター・具体的な期待値はここに書く
+  await expect(page.locator('[data-testid="stock-card"]')).toHaveCount(5);
+  await expect(page.locator('[data-testid="sort-select"]')).toHaveValue('gain');
+});
 ```
 
 **ルール**:
 - 受け入れ基準を1つ残らずシナリオに対応させること
 - 正常系・異常系・境界値を網羅すること
-- `data-testid` はこの Gherkin がコントラクトとなるため、frontend-agent が実装時に必ず付与する
+- `data-testid` はこの `.spec.ts` がコントラクトとなるため、frontend-agent が実装時に必ず付与する
 
 ---
 

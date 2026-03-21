@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
 import { StocksGatewayPort } from '../port/stocks.gateway.port';
@@ -23,10 +19,9 @@ export class StocksGatewayA implements StocksGatewayPort {
 
   async getPopularStocks(limit: number): Promise<Stock[]> {
     try {
-      const response = await this.axiosInstance.get<DownstreamStockRate[]>(
-        '/stocks/popular',
-        { params: { limit } },
-      );
+      const response = await this.axiosInstance.get<DownstreamStockRate[]>('/stocks/popular', {
+        params: { limit },
+      });
       return response.data.map(
         (dto) =>
           new Stock({
@@ -38,9 +33,7 @@ export class StocksGatewayA implements StocksGatewayPort {
       );
     } catch (error) {
       this.logger.error('StocksGatewayA failed', error);
-      throw new InternalServerErrorException(
-        'Stock service A is unavailable',
-      );
+      throw new InternalServerErrorException('Stock service A is unavailable');
     }
   }
 }

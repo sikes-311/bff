@@ -72,9 +72,7 @@ describe('StocksGatewayB', () => {
       mockAxiosInstance.get.mockRejectedValue(new Error('Network Error'));
 
       // Act & Assert
-      await expect(gateway.getPopularStocks(5)).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(gateway.getPopularStocks(5)).rejects.toThrow(InternalServerErrorException);
     });
   });
 });

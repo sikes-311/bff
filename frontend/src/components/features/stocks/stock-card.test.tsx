@@ -56,4 +56,26 @@ describe('StockCard', () => {
     expect(screen.getByTestId('stock-price-usd')).toBeInTheDocument();
     expect(screen.getByTestId('stock-change-percent')).toBeInTheDocument();
   });
+
+  it('正常系: hrefなしの場合はdivでレンダリングされる', () => {
+    // Arrange & Act
+    render(<StockCard stock={mockStock} />);
+
+    // Assert
+    const card = screen.getByTestId('stock-card');
+    expect(card.closest('a')).toBeNull();
+  });
+
+  it('正常系: hrefありの場合はLinkでラップされhrefが設定される', () => {
+    // Arrange
+    const href = '/stocks/Apple%20Inc./chart';
+
+    // Act
+    render(<StockCard stock={mockStock} href={href} />);
+
+    // Assert
+    const link = screen.getByTestId('stock-card').closest('a');
+    expect(link).not.toBeNull();
+    expect(link).toHaveAttribute('href', href);
+  });
 });

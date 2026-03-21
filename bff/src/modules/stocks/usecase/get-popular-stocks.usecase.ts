@@ -1,18 +1,11 @@
-import {
-  Injectable,
-  Inject,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, Inject, InternalServerErrorException } from '@nestjs/common';
 import {
   STOCKS_GATEWAY_A_PORT,
   STOCKS_GATEWAY_B_PORT,
   StocksGatewayPort,
 } from '../port/stocks.gateway.port';
 import { Stock } from '../domain/stock';
-import {
-  PopularStocksResponseDto,
-  StockRateDto,
-} from '../dto/stock-response.dto';
+import { PopularStocksResponseDto, StockRateDto } from '../dto/stock-response.dto';
 
 @Injectable()
 export class GetPopularStocksUsecase {
@@ -33,9 +26,7 @@ export class GetPopularStocksUsecase {
     const stocksB = resultB.status === 'fulfilled' ? resultB.value : [];
 
     if (stocksA.length === 0 && stocksB.length === 0) {
-      throw new InternalServerErrorException(
-        'Both stock services are unavailable',
-      );
+      throw new InternalServerErrorException('Both stock services are unavailable');
     }
 
     const merged = this.mergeAndAverage(stocksA, stocksB);
@@ -63,12 +54,9 @@ export class GetPopularStocksUsecase {
         result.push(
           new Stock({
             name: stockA.name,
-            priceJpyPer100:
-              ((stockA.priceJpy + stockB.priceJpy) * 100) / 2,
-            priceUsdPer100:
-              ((stockA.priceUsd + stockB.priceUsd) * 100) / 2,
-            changePercent:
-              (stockA.changePercent + stockB.changePercent) / 2,
+            priceJpyPer100: ((stockA.priceJpy + stockB.priceJpy) * 100) / 2,
+            priceUsdPer100: ((stockA.priceUsd + stockB.priceUsd) * 100) / 2,
+            changePercent: (stockA.changePercent + stockB.changePercent) / 2,
           }),
         );
         mapB.delete(stockA.name);

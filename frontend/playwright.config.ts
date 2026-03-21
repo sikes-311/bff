@@ -20,4 +20,24 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
+  webServer: [
+    {
+      command: 'node ../bff/mock-server.mjs',
+      port: 4001,
+      reuseExistingServer: true,
+      timeout: 30000,
+    },
+    {
+      command: 'cd ../bff && npm run start:dev',
+      port: 3001,
+      reuseExistingServer: true,
+      timeout: 60000,
+    },
+    {
+      command: 'npm run dev',
+      port: 3000,
+      reuseExistingServer: true,
+      timeout: 60000,
+    },
+  ],
 });

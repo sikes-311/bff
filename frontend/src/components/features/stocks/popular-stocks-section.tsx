@@ -27,8 +27,12 @@ export function PopularStocksSection() {
 
       {data && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {data.data.map((stock) => (
-            <StockCard key={stock.name} stock={stock} />
+          {data.data.map((stock, index) => (
+            <StockCard
+              key={`${stock.name}-${index}`}
+              stock={stock}
+              href={`/stocks/${encodeURIComponent(stock.name)}/chart`}
+            />
           ))}
         </div>
       )}

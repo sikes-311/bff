@@ -1,13 +1,17 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { GetPopularStocksUsecase } from './usecase/get-popular-stocks.usecase';
 import { PopularStocksResponseDto } from './dto/stock-response.dto';
+import { GetStockChartUsecase } from './usecase/get-stock-chart.usecase';
+import { StockChartResponseDto } from './dto/stock-chart-response.dto';
 
 @ApiTags('stocks')
 @ApiBearerAuth()
@@ -16,6 +20,7 @@ import { PopularStocksResponseDto } from './dto/stock-response.dto';
 export class StocksController {
   constructor(
     private readonly getPopularStocksUsecase: GetPopularStocksUsecase,
+    private readonly getStockChartUsecase: GetStockChartUsecase,
   ) {}
 
   @Get('popular')
@@ -23,5 +28,22 @@ export class StocksController {
   @ApiResponse({ status: 200, type: PopularStocksResponseDto })
   async getPopularStocks(): Promise<PopularStocksResponseDto> {
     return this.getPopularStocksUsecase.execute();
+  }
+
+  @Get(':name/chart')
+  @ApiOperation({ summary: '銘柄の株価チャートデータ取得' })
+  @ApiParam({ name: 'name', description: '銘柄名' })
+  @ApiQuery({
+    name: 'period',
+    required: false,
+    enum: ['6m', '1y', '2y', '10y'],
+    description: '表示期間（デフォルト: 6m）',
+  })
+  @ApiResponse({ status: 200, type: StockChartResponseDto })
+  async getStockChart(
+    @Param('name') name: string,
+    @Query('period') period: string = '6m',
+  ): Promise<StockChartResponseDto> {
+    return this.getStockChartUsecase.execute(name, period);
   }
 }

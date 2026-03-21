@@ -45,9 +45,36 @@ Browser → Frontend (port 3000) → BFF (port 3001) → [モック境界] → D
 ```
 frontend/e2e/
 ├── features/
-│   └── {feature}.feature    # Gherkin（BDDシナリオの記述）
-└── {feature}.spec.ts        # Playwright テスト本体
+│   └── {feature}.feature    # Gherkin（振る舞い記述・ユーザー視点）
+└── {feature}.spec.ts        # Playwright テスト本体（UI コントラクト・実装詳細）
 ```
+
+### `.feature` と `.spec.ts` の記述レベルを分離すること
+
+| ファイル | 記述レベル | 書いてよいもの | 書いてはいけないもの |
+|---|---|---|---|
+| `.feature` | **振る舞い（ユーザー視点）** | 操作・期待する状態・文言 | `data-testid`・内部値・URL |
+| `.spec.ts` | **UI コントラクト（実装詳細）** | `data-testid`・期待値・URL・セレクター | （制限なし） |
+
+**悪い例（`.feature` に実装詳細が混入している）**:
+```gherkin
+Then "[data-testid="sort-select"]" の値が "gain" である
+And "[data-testid="stocks-list"]" に "[data-testid="stock-card"]" が5件表示される
+```
+
+**良い例（`.feature` は振る舞い、`.spec.ts` に詳細）**:
+```gherkin
+# .feature
+Then デフォルトの並び順が「値上がり順」である
+And 全銘柄が一覧表示される
+```
+```typescript
+// .spec.ts
+await expect(page.locator('[data-testid="sort-select"]')).toHaveValue('gain');
+await expect(page.locator('[data-testid="stocks-list"] [data-testid="stock-card"]')).toHaveCount(5);
+```
+
+> **理由**: `.feature` は PO・テスターも読む仕様書として機能する。`data-testid` などの実装詳細が混入すると、振る舞いとして何ができるかが読み取れなくなる。
 
 ## Playwright テストのパターン
 

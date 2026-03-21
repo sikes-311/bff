@@ -8,10 +8,13 @@
  *   GET /users             → ユーザー一覧
  *   GET /users/:id         → ユーザー詳細
  *   GET /stocks/popular    → 人気株価一覧
+ *   GET /stocks/:name/chart → 銘柄チャートデータ
  *
  * テスト制御:
- *   POST /admin/force-error  → /stocks/popular を 500 エラー返却モードに切替
- *   POST /admin/clear-error  → エラーモード解除
+ *   POST /admin/force-error       → /stocks/popular を 500 エラー返却モードに切替
+ *   POST /admin/clear-error       → エラーモード解除
+ *   POST /admin/force-chart-error → /stocks/:name/chart を 500 エラー返却モードに切替
+ *   POST /admin/clear-chart-error → チャートエラーモード解除
  */
 
 import { createServer } from 'node:http';
@@ -54,9 +57,59 @@ const STOCKS_B = [
   { stockname: 'ソフトバンク',   price_jpy: 180000,   price_usd: 1200,  changePercent:  0.7 },
 ];
 
+// ----- モックデータ: チャート (10年分月次データ) -----
+function generateChartData(stockConfig) {
+  const data = [];
+  const startDate = new Date(2016, 0, 1);
+  const endDate = new Date(2026, 2, 1);
+  const totalMonths =
+    (endDate.getFullYear() - startDate.getFullYear()) * 12 +
+    (endDate.getMonth() - startDate.getMonth());
+
+  for (let i = 0; i <= totalMonths; i++) {
+    const date = new Date(startDate);
+    date.setMonth(date.getMonth() + i);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const ratio = i / totalMonths;
+    const price = Math.round(
+      stockConfig.startPrice + (stockConfig.endPrice - stockConfig.startPrice) * ratio,
+    );
+    data.push({ date: `${year}-${month}-01`, price_jpy: price });
+  }
+  return data;
+}
+
+const CHART_CONFIG_A = {
+  'トヨタ自動車':   { startPrice: 300000,   endPrice: 380000 },
+  'ソニーグループ': { startPrice: 1100000,  endPrice: 1300000 },
+  '任天堂':         { startPrice: 650000,   endPrice: 780000 },
+  'ソフトバンク':   { startPrice: 150000,   endPrice: 200000 },
+  'キーエンス':     { startPrice: 3800000,  endPrice: 4200000 },
+};
+
+const CHART_CONFIG_B = {
+  'トヨタ自動車':   { startPrice: 310000,   endPrice: 390000 },
+  'ソニーグループ': { startPrice: 1120000,  endPrice: 1310000 },
+  '任天堂':         { startPrice: 660000,   endPrice: 790000 },
+  'ソフトバンク':   { startPrice: 155000,   endPrice: 205000 },
+};
+
+const CHART_DATA_A = {};
+for (const [name, config] of Object.entries(CHART_CONFIG_A)) {
+  CHART_DATA_A[name] = generateChartData(config);
+}
+
+const CHART_DATA_B = {};
+for (const [name, config] of Object.entries(CHART_CONFIG_B)) {
+  CHART_DATA_B[name] = generateChartData(config);
+}
+
 // ----- エラーモード制御 -----
 let errorModeA = false;
 let errorModeB = false;
+let chartErrorModeA = false;
+let chartErrorModeB = false;
 
 // ----- ユーティリティ -----
 function send(res, status, body) {
@@ -77,7 +130,7 @@ function readBody(req) {
 }
 
 // ----- ルート定義ファクトリ -----
-function buildRoutes(stocks, getErrorMode) {
+function buildRoutes(stocks, chartData, getErrorMode, getChartErrorMode, setChartErrorMode) {
   return [
     // GET /users?page=1&limit=20
     {
@@ -120,6 +173,27 @@ function buildRoutes(stocks, getErrorMode) {
         send(res, 200, stocks.slice(0, limit));
       },
     },
+    // GET /stocks/:name/chart?from=&to=
+    {
+      method: 'GET',
+      pattern: /^\/stocks\/[^/]+\/chart(\?.*)?$/,
+      handler: (req, res, port) => {
+        if (getChartErrorMode()) {
+          send(res, 500, { error: 'chart error' });
+          return;
+        }
+        const url = new URL(req.url, `http://localhost:${port}`);
+        const pathParts = url.pathname.split('/');
+        const name = decodeURIComponent(pathParts[2]);
+        const from = url.searchParams.get('from');
+        const to = url.searchParams.get('to');
+        const data = chartData[name] || [];
+        const filtered = data.filter(
+          (d) => (!from || d.date >= from) && (!to || d.date <= to),
+        );
+        send(res, 200, filtered);
+      },
+    },
     // POST /admin/force-error
     {
       method: 'POST',
@@ -140,6 +214,26 @@ function buildRoutes(stocks, getErrorMode) {
         errorModeA = false;
         errorModeB = false;
         send(res, 200, { message: 'error mode OFF' });
+      },
+    },
+    // POST /admin/force-chart-error
+    {
+      method: 'POST',
+      pattern: /^\/admin\/force-chart-error$/,
+      handler: async (req, res) => {
+        await readBody(req);
+        setChartErrorMode(true);
+        send(res, 200, { ok: true });
+      },
+    },
+    // POST /admin/clear-chart-error
+    {
+      method: 'POST',
+      pattern: /^\/admin\/clear-chart-error$/,
+      handler: async (req, res) => {
+        await readBody(req);
+        setChartErrorMode(false);
+        send(res, 200, { ok: true });
       },
     },
   ];
@@ -165,13 +259,28 @@ function startServer(port, routes, label) {
     console.log(`  GET  http://localhost:${port}/users`);
     console.log(`  GET  http://localhost:${port}/users/:id`);
     console.log(`  GET  http://localhost:${port}/stocks/popular`);
+    console.log(`  GET  http://localhost:${port}/stocks/:name/chart`);
     console.log(`  POST http://localhost:${port}/admin/force-error`);
     console.log(`  POST http://localhost:${port}/admin/clear-error`);
+    console.log(`  POST http://localhost:${port}/admin/force-chart-error`);
+    console.log(`  POST http://localhost:${port}/admin/clear-chart-error`);
   });
 }
 
-const routesA = buildRoutes(STOCKS_A, () => errorModeA);
-const routesB = buildRoutes(STOCKS_B, () => errorModeB);
+const routesA = buildRoutes(
+  STOCKS_A,
+  CHART_DATA_A,
+  () => errorModeA,
+  () => chartErrorModeA,
+  (v) => { chartErrorModeA = v; },
+);
+const routesB = buildRoutes(
+  STOCKS_B,
+  CHART_DATA_B,
+  () => errorModeB,
+  () => chartErrorModeB,
+  (v) => { chartErrorModeB = v; },
+);
 
 startServer(4001, routesA, 'Service A');
 startServer(4002, routesB, 'Service B');

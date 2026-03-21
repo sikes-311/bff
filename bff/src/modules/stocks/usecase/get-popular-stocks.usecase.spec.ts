@@ -97,9 +97,7 @@ describe('GetPopularStocksUsecase', () => {
     it('正常系: GatewayA と GatewayB を並列で呼び出す（Promise.allSettled）', async () => {
       // Arrange
       gatewayA.getPopularStocks.mockResolvedValue([]);
-      gatewayB.getPopularStocks.mockResolvedValue([
-        createStock('AAPL', 350000, 2400, 1.0),
-      ]);
+      gatewayB.getPopularStocks.mockResolvedValue([createStock('AAPL', 350000, 2400, 1.0)]);
 
       // Act
       await usecase.execute();
@@ -115,9 +113,7 @@ describe('GetPopularStocksUsecase', () => {
       gatewayB.getPopularStocks.mockRejectedValue(new Error('Service B down'));
 
       // Act & Assert
-      await expect(usecase.execute()).rejects.toThrow(
-        InternalServerErrorException,
-      );
+      await expect(usecase.execute()).rejects.toThrow(InternalServerErrorException);
     });
 
     it('正常系: 片方のみエラーの場合は残りの結果を使用する', async () => {
