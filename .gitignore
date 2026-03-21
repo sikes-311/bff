@@ -1,4 +1,11 @@
 */node_modules/
+node_modules/
+
+# Playwright
+/frontend/test-results/
+/frontend/playwright-report/
+/frontend/blob-report/
+/frontend/playwright/.cache/
 .next
 dist/
 coverage/
