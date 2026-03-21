@@ -91,7 +91,15 @@ classDiagram
     +number priceJpy
     +number priceUsd
     +number changePercent
-    +constructor(dto: DownstreamStockRate)
+    +constructor(params: StockParams)
+  }
+
+  class StockParams {
+    <<primitives>>
+    +string name
+    +number priceJpyPer100
+    +number priceUsdPer100
+    +number changePercent
   }
 
   class DownstreamStockRate {
@@ -121,7 +129,9 @@ classDiagram
   StocksGatewayB ..> Stock : returns
   StocksGatewayA ..> DownstreamStockRate : receives from API
   StocksGatewayB ..> DownstreamStockRate : receives from API
-  Stock ..> DownstreamStockRate : constructed from
+  StocksGatewayA ..> StockParams : maps to
+  StocksGatewayB ..> StockParams : maps to
+  Stock ..> StockParams : constructed from
   GetPopularStocksUsecase ..> Stock : operates on
   GetPopularStocksUsecase ..> PopularStocksResponseDto : returns
   PopularStocksResponseDto *-- StockRateDto : contains
@@ -161,16 +171,34 @@ export class Stock {
   readonly priceUsd: number;    // 1株あたりドル建て
   readonly changePercent: number;
 
-  constructor(dto: DownstreamStockRate) {
-    this.name = dto.stockname;
-    this.priceJpy = dto.price_jpy / 100;   // 100株あたり → 1株あたりに変換
-    this.priceUsd = dto.price_usd / 100;   // 100株あたり → 1株あたりに変換
-    this.changePercent = dto.changePercent;
+  // DIP遵守: DownstreamStockRate を直接受け取らず、プリミティブ値を受け取る
+  // DownstreamDTO → プリミティブへのマッピングは Gateway の責務
+  constructor(params: {
+    name: string;
+    priceJpyPer100: number;
+    priceUsdPer100: number;
+    changePercent: number;
+  }) {
+    this.name = params.name;
+    this.priceJpy = params.priceJpyPer100 / 100;   // 100株あたり → 1株あたりに変換
+    this.priceUsd = params.priceUsdPer100 / 100;   // 100株あたり → 1株あたりに変換
+    this.changePercent = params.changePercent;
   }
 }
 ```
 
+```typescript
+// Gateway の責務: DownstreamDTO のフィールドをプリミティブとして Stock に渡す
+return response.data.map(dto => new Stock({
+  name: dto.stockname,
+  priceJpyPer100: dto.price_jpy,
+  priceUsdPer100: dto.price_usd,
+  changePercent: dto.changePercent,
+}));
+```
+
 - **責務**: ダウンストリームのレスポンスをフロントエンドで表示可能なデータに変換する際のビジネスロジックを集約する。単位変換・命名の正規化はここに閉じ込め、Usecase・Gateway に散らばらせない
+- **DIP遵守**: 最内層のため外部への依存ゼロ。DownstreamDTO を直接受け取らないことで、外部APIの型変更が Domain に波及しない
 - NestJS / axios への依存ゼロのため、単体テストがシンプルになる
 - 変換ルールが変わった場合、`stock.ts` だけを修正すれば他の層に影響しない
 

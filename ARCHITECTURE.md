@@ -112,6 +112,8 @@
 BFF は機能モジュール内を **4層** に分離する。ビジネスロジックは持たないが、集約・変換ロジックをテスト可能な形で整理するために採用する。
 
 ```
+          依存の方向（矢印の向き = 「依存する」方向）
+
 ┌─────────────────────────────────────────┐
 │  Presentation層 (Controller)            │
 │  ・HTTPリクエスト/レスポンスのマッピング   │
@@ -119,33 +121,35 @@ BFF は機能モジュール内を **4層** に分離する。ビジネスロジ
 │  ・認証ガードの適用                       │
 │  ・Usecase の呼び出し（1エンドポイント = 1Usecase）│
 └───────────────────┬─────────────────────┘
-                    │ 呼び出し
+                    │ depends on
                     ▼
 ┌─────────────────────────────────────────┐
 │  Usecase層 (*.usecase.ts)               │
 │  ・1クラス = 1ユースケース (execute メソッド)│
-│  ・複数Gatewayの集約・ドメインモデルの操作  │
-│  ・依存はPortインターフェースのみ          │
-└───────────────────┬─────────────────────┘
-                    │ ドメインモデルを受け取る
-                    ▼
-┌─────────────────────────────────────────┐
-│  Domain層 (domain/*.ts)                 │
-│  ・ドメインモデルクラス（プレーンな TS クラス）│
-│  ・外部システムの都合（単位・命名）を吸収    │
-│  ・constructor で DownstreamDTO を受け取り │
-│    自身のフィールドに変換して詰める         │
-│  ・NestJS / axios 等への依存ゼロ          │
-└───────────────────┬─────────────────────┘
-                    │ Port経由で呼び出し
-                    ▼
-┌─────────────────────────────────────────┐
-│  Gateway層 (*.gateway.ts)               │
-│  ・Portインターフェースの実装              │
-│  ・axios によるHTTP通信                  │
-│  ・DownstreamDTO → ドメインモデルへの変換  │
-│    (new DomainModel(downstreamDto))      │
-└─────────────────────────────────────────┘
+│  ・Port経由でGatewayを呼び出し集約        │
+│  ・ドメインモデルを操作してレスポンスを組立  │
+│  ・依存: Port(interface) + Domain のみ   │
+└──────────┬──────────────────────────────┘
+           │ depends on          │ depends on
+           ▼                     ▼
+┌──────────────────┐   ┌─────────────────────────────────────┐
+│  Port層          │   │  Domain層 (domain/*.ts)              │
+│  (interface)     │   │  ・最内層。外部への依存ゼロ            │
+│  ・Gatewayの      │   │  ・ビジネスロジック（変換・計算）を集約 │
+│    抽象を定義     │   │  ・constructor はプリミティブ値を受け取り│
+│  ・戻り値は       │   │    変換ロジックを実行してフィールドに詰める│
+│    Domain型      │   └─────────────────────────────────────┘
+└──────────┬───────┘                    ▲
+           │ implements                  │ depends on (new DomainModel)
+           ▼                             │
+┌──────────────────────────────────────────────────┐
+│  Gateway層 (*.gateway.ts)                         │
+│  ・Portインターフェースを implements               │
+│  ・axios によるHTTP通信                           │
+│  ・DownstreamDTO のフィールドをプリミティブとして   │
+│    DomainModel のコンストラクタに渡す              │
+│    (new DomainModel({ name: dto.stockname, ... })) │
+└──────────────────────────────────────────────────┘
 ```
 
 ### 設計ルール
@@ -159,14 +163,19 @@ BFF は機能モジュール内を **4層** に分離する。ビジネスロジ
 **Domain（ドメインモデル）**
 - **責務**: ダウンストリームのレスポンスをフロントエンドで表示可能なデータに変換する際のビジネスロジックを集約する。単位変換・命名の正規化・計算ロジックはここに閉じ込め、Usecase・Gateway に散らばらせない。
 - `domain/` ディレクトリにプレーンな TypeScript クラスとして定義する。
-- `constructor` は DownstreamDTO を受け取り、変換ロジックを実行して自身のフィールドに詰める。
+- **DIP遵守**: 最内層のため、他のいかなる層にも依存しない。`constructor` はプリミティブ値を受け取り、変換ロジックを実行して自身のフィールドに詰める（DownstreamDTO を直接受け取らない）。
   ```typescript
-  // 例: 100株あたりの価格 → 1株あたりの価格に変換
-  constructor(dto: DownstreamStockRate) {
-    this.name = dto.stockname;
-    this.priceJpy = dto.price_jpy / 100;
-    this.priceUsd = dto.price_usd / 100;
-    this.changePercent = dto.changePercent;
+  // 例: Gateway からプリミティブ値を受け取り、100株→1株変換をここで行う
+  constructor(params: {
+    name: string;
+    priceJpyPer100: number;
+    priceUsdPer100: number;
+    changePercent: number;
+  }) {
+    this.name = params.name;
+    this.priceJpy = params.priceJpyPer100 / 100;
+    this.priceUsd = params.priceUsdPer100 / 100;
+    this.changePercent = params.changePercent;
   }
   ```
 - NestJS・axios・class-validator 等のフレームワーク依存を持たない。
@@ -182,7 +191,16 @@ BFF は機能モジュール内を **4層** に分離する。ビジネスロジ
 **Gateway**
 - Port インターフェースを `implements` する形で実装する。
 - ダウンストリームサービスの HTTP 通信のみを担当する。
-- レスポンスの DownstreamDTO を `new DomainModel(dto)` でドメインモデルに変換して返す。
+- DownstreamDTO のフィールドをプリミティブとして抽出し、DomainModel のコンストラクタに渡す。DownstreamDTO を直接 Domain に渡さないことで DIP を遵守する。
+  ```typescript
+  // Gateway の責務: DownstreamDTO → Domain への変換（フィールドをプリミティブとして渡す）
+  return response.data.map(dto => new Stock({
+    name: dto.stockname,
+    priceJpyPer100: dto.price_jpy,
+    priceUsdPer100: dto.price_usd,
+    changePercent: dto.changePercent,
+  }));
+  ```
 
 ### Usecase テストの構造
 
